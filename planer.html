@@ -219,6 +219,16 @@
             box-shadow: 0 0 0 3px #10b981;
         }
 
+        .activity-item.completed {
+            opacity: 0.7;
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        }
+
+        .activity-item.completed .activity-title {
+            text-decoration: line-through;
+            color: #16a34a;
+        }
+
         .activity-item.urgent::before {
             background: #ef4444;
             box-shadow: 0 0 0 3px #ef4444;
@@ -451,7 +461,7 @@
     <script>
         // Dinamički izračunaj dane do svakog datuma
         function calculateDaysRemaining() {
-            const today = new Date('2025-06-16'); // Trenutni datum
+            const today = new Date(); // Stvarni trenutni datum
             const activities = [
                 { date: '2025-06-17', element: document.querySelectorAll('.days-remaining')[0] },
                 { date: '2025-06-20', element: document.querySelectorAll('.days-remaining')[1] },
@@ -466,7 +476,12 @@
                 const diffTime = activityDate - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                if (diffDays === 1) {
+                if (diffDays < 0) {
+                    activity.element.innerHTML = '✅ Završeno';
+                    activity.element.parentElement.classList.add('completed');
+                } else if (diffDays === 0) {
+                    activity.element.innerHTML = '🔥 DANAS!';
+                } else if (diffDays === 1) {
                     activity.element.innerHTML = '⚡ Ostao 1 dan - HITNO!';
                 } else if (diffDays <= 3) {
                     activity.element.innerHTML = `⏰ Ostalo ${diffDays} dana`;
@@ -488,6 +503,9 @@
 
         // Pozovi funkciju za izračunavanje dana
         calculateDaysRemaining();
+
+        // Ažuriraj svakih 60 sekundi
+        setInterval(calculateDaysRemaining, 60000);
 
         // Dodaj hover efekat za aktivnosti
         const activityItems = document.querySelectorAll('.activity-item');
