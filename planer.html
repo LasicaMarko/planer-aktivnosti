@@ -131,7 +131,7 @@
             height: 100%;
             background: linear-gradient(90deg, #10b981, #059669);
             border-radius: 6px;
-            transition: width 1s ease;
+            transition: width 1s ease, background 0.5s ease;
             animation: progressGrow 2s ease-out;
         }
 
@@ -369,20 +369,20 @@
         <div class="progress-overview">
             <div class="progress-stats">
                 <div class="stat-card">
-                    <div class="stat-number" style="color: #4f46e5;">6</div>
+                    <div class="stat-number" style="color: #4f46e5;">-</div>
                     <div class="stat-label">Ukupno aktivnosti</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" style="color: #ef4444;">3</div>
+                    <div class="stat-number" style="color: #ef4444;">-</div>
                     <div class="stat-label">Narednih 7 dana</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" style="color: #10b981;">24</div>
+                    <div class="stat-number" style="color: #10b981;">-</div>
                     <div class="stat-label">Dana do poslednje</div>
                 </div>
             </div>
             <div class="progress-bar">
-                <div class="progress-fill" style="width: 16.7%;"></div>
+                <div class="progress-fill" style="width: 0%;"></div>
             </div>
         </div>
 
@@ -471,7 +471,11 @@
                 { date: '2025-07-10', element: document.querySelectorAll('.days-remaining')[5] }
             ];
 
-            activities.forEach(activity => {
+            let completedCount = 0;
+            let upcomingIn7Days = 0;
+            let daysToLast = 0;
+
+            activities.forEach((activity, index) => {
                 const activityDate = new Date(activity.date);
                 const diffTime = activityDate - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -479,25 +483,82 @@
                 if (diffDays < 0) {
                     activity.element.innerHTML = '✅ Završeno';
                     activity.element.parentElement.classList.add('completed');
+                    completedCount++;
                 } else if (diffDays === 0) {
                     activity.element.innerHTML = '🔥 DANAS!';
+                    activity.element.parentElement.classList.remove('completed');
+                    if (diffDays <= 7) upcomingIn7Days++;
                 } else if (diffDays === 1) {
                     activity.element.innerHTML = '⚡ Ostao 1 dan - HITNO!';
+                    activity.element.parentElement.classList.remove('completed');
+                    if (diffDays <= 7) upcomingIn7Days++;
                 } else if (diffDays <= 3) {
                     activity.element.innerHTML = `⏰ Ostalo ${diffDays} dana`;
+                    activity.element.parentElement.classList.remove('completed');
+                    if (diffDays <= 7) upcomingIn7Days++;
                 } else if (diffDays <= 7) {
                     activity.element.innerHTML = `📅 Ostalo ${diffDays} dana`;
+                    activity.element.parentElement.classList.remove('completed');
+                    upcomingIn7Days++;
                 } else {
                     activity.element.innerHTML = `📊 Ostalo ${diffDays} dana`;
+                    activity.element.parentElement.classList.remove('completed');
+                }
+
+                // Pronađi najdalji datum
+                if (diffDays > daysToLast && diffDays > 0) {
+                    daysToLast = diffDays;
                 }
             });
+
+            // Ažuriraj statistike
+            updateStatistics(activities.length, upcomingIn7Days, daysToLast, completedCount);
         }
 
-        // Animacija za progress bar
-        window.addEventListener('load', function() {
+        // Funkcija za ažuriranje statistika
+        function updateStatistics(totalActivities, upcoming7Days, daysToLast, completedCount) {
+            // Ažuriraj brojeve u stat cards
+            const statNumbers = document.querySelectorAll('.stat-number');
+            const statLabels = document.querySelectorAll('.stat-label');
+            
+            statNumbers[0].textContent = totalActivities;
+            statNumbers[1].textContent = upcoming7Days;
+            statNumbers[2].textContent = daysToLast > 0 ? daysToLast : 'N/A';
+            
+            // Promijeni boje na osnovu stanja
+            if (upcoming7Days === 0) {
+                statNumbers[1].style.color = '#10b981'; // Zeleno ako nema hitnih
+            } else if (upcoming7Days >= 3) {
+                statNumbers[1].style.color = '#ef4444'; // Crveno ako ima puno hitnih
+            } else {
+                statNumbers[1].style.color = '#f59e0b'; // Žuto za umjereno
+            }
+
+            // Ažuriraj progress bar
+            const progressPercentage = (completedCount / totalActivities) * 100;
             const progressFill = document.querySelector('.progress-fill');
+            progressFill.style.width = `${progressPercentage}%`;
+            
+            // Promijeni boju progress bara na osnovu napretka
+            if (progressPercentage === 100) {
+                progressFill.style.background = 'linear-gradient(90deg, #10b981, #059669)'; // Zeleno - sve završeno
+            } else if (progressPercentage >= 50) {
+                progressFill.style.background = 'linear-gradient(90deg, #3b82f6, #1d4ed8)'; // Plavo - dobar napredak
+            } else if (progressPercentage > 0) {
+                progressFill.style.background = 'linear-gradient(90deg, #f59e0b, #d97706)'; // Žuto - nešto završeno
+            } else {
+                progressFill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)'; // Crveno - ništa nije završeno
+            }
+
+            // Dodaj animaciju kada se progress mijenja
+            progressFill.style.transition = 'width 1s ease, background 0.5s ease';
+        }
+
+        // Animacija za progress bar pri učitavanju
+        window.addEventListener('load', function() {
+            // Ukloni hard-kodirani width, sada će se postaviti dinamički
             setTimeout(() => {
-                progressFill.style.width = '16.7%';
+                calculateDaysRemaining(); // Pozovi odmah da se postavi početni progress
             }, 500);
         });
 
@@ -517,6 +578,13 @@
             item.addEventListener('mouseleave', function() {
                 this.style.transform = 'translateX(0) scale(1)';
             });
+        });
+
+        // Dodaj event listener za manual refresh statistika (za testiranje)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+                setTimeout(calculateDaysRemaining, 100);
+            }
         });
     </script>
 </body>
